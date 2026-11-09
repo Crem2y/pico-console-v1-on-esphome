@@ -1,0 +1,379 @@
+# Board: Raspberry Pi Pico W
+# Definition: definitions/boards/rpipicow/manifest.yaml
+
+esphome:
+  name: pico-console-v1
+  friendly_name: Pico Console V1
+  on_boot:
+    priority: -100
+    then:
+      - output.set_level:
+          id: output_lcd_light
+          level: 50%
+
+rp2:
+  board: rpipicow
+
+logger:
+
+api:
+  encryption:
+    key: "Use your key here"
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: pico console v1 Fallback Hotspot
+    password: "Use your password here"
+
+captive_portal:
+
+text:
+  - platform: template
+    name: "Console Message"
+    id: console_message
+    mode: text
+    optimistic: true
+    max_length: 100
+    on_value:
+      then:
+        - component.update: lcd
+
+font:
+  - file: "gfonts://Roboto"
+    id: console_font
+    size: 20
+
+globals:
+  - id: beep_state
+    type: bool
+    initial_value: 'false'
+
+  - id: beep_enabled
+    type: bool
+    initial_value: 'false'
+
+interval:
+  - interval: 1ms
+    then:
+      - lambda: |-
+          if (id(beep_enabled)) {
+            id(beep_state) = !id(beep_state);
+            id(DAC_L).set_level(
+              id(beep_state) ? 0.75f : 0.25f
+            );
+            id(DAC_R).set_level(
+              id(beep_state) ? 0.75f : 0.25f
+            );
+          }
+
+switch:
+  - platform: output
+    name: "LED1"
+    id: led_1
+    output: output_rp2040_pwm_1
+  - platform: output
+    name: "LED2"
+    id: led_2
+    output: output_rp2040_pwm_2
+  - platform: output
+    name: "LED3"
+    id: led_3
+    output: output_rp2040_pwm_3
+  - platform: output
+    name: "LED4"
+    id: led_4
+    output: output_rp2040_pwm_4
+  - platform: template
+    name: "Console Beep"
+    id: console_beep
+    optimistic: true
+    turn_on_action:
+      - globals.set:
+          id: beep_enabled
+          value: 'true'
+    turn_off_action:
+      - globals.set:
+          id: beep_enabled
+          value: 'false'
+      - output.set_level:
+          id: DAC_L
+          level: 50%
+      - output.set_level:
+          id: DAC_R
+          level: 50%
+
+i2c:
+  - id: i2c_0
+    scl: 5
+    sda: 4
+    frequency: 1000kHz
+  - id: i2c_1
+    scl: 3
+    sda: 2
+
+spi:
+  - id: spi_0
+    clk_pin: 18
+    miso_pin: 16
+    mosi_pin: 19
+
+output:
+  - platform: rp2040_pwm
+    id: output_rp2040_pwm_1
+    pin: GPIO8
+    inverted: true
+  - platform: rp2040_pwm
+    id: output_rp2040_pwm_2
+    pin: GPIO9
+    inverted: true
+  - platform: rp2040_pwm
+    id: output_rp2040_pwm_3
+    pin: GPIO10
+    inverted: true
+  - platform: rp2040_pwm
+    id: output_rp2040_pwm_4
+    pin: GPIO11
+    inverted: true
+  - platform: rp2040_pwm
+    id: output_lcd_light
+    pin: GPIO12
+  - platform: mcp4725
+    id: DAC_L
+    i2c_id : i2c_0
+    address: 0x60
+  - platform: mcp4725
+    id: DAC_R
+    i2c_id : i2c_0
+    address: 0x61
+    
+number:
+  - platform: template
+    name: "LCD Brightness"
+    id: lcd_brightness
+    min_value: 0
+    max_value: 100
+    step: 1
+    optimistic: true
+    initial_value: 50
+    set_action:
+      - output.set_level:
+          id: output_lcd_light
+          level: !lambda 'return x / 100.0f;'
+
+pca9554:
+  - id: pca9554_1
+    i2c_id : i2c_1
+    address: 0x38
+  - id: pca9554_2
+    i2c_id : i2c_1
+    address: 0x39
+  - id: pca9554_3
+    i2c_id : i2c_1
+    address: 0x3A
+
+binary_sensor:
+  - platform: gpio
+    name: "S1_U"
+    pin:
+      pca9554: pca9554_1
+      number: 0
+      inverted: true
+  - platform: gpio
+    name: "S1_D"
+    pin:
+      pca9554: pca9554_1
+      number: 1
+      inverted: true
+  - platform: gpio
+    name: "S1_L"
+    pin:
+      pca9554: pca9554_1
+      number: 2
+      inverted: true
+  - platform: gpio
+    name: "S1_R"
+    pin:
+      pca9554: pca9554_1
+      number: 3
+      inverted: true
+  - platform: gpio
+    name: "BTN_R"
+    pin:
+      pca9554: pca9554_1
+      number: 4
+      inverted: true
+  - platform: gpio
+    name: "BTN_L"
+    pin:
+      pca9554: pca9554_1
+      number: 5
+      inverted: true
+  - platform: gpio
+    name: "BTN_D"
+    pin:
+      pca9554: pca9554_1
+      number: 6
+      inverted: true
+  - platform: gpio
+    name: "BTN_U"
+    pin:
+      pca9554: pca9554_1
+      number: 7
+      inverted: true
+  - platform: gpio
+    name: "S2_U"
+    pin:
+      pca9554: pca9554_2
+      number: 0
+      inverted: true
+  - platform: gpio
+    name: "S2_D"
+    pin:
+      pca9554: pca9554_2
+      number: 1
+      inverted: true
+  - platform: gpio
+    name: "S2_L"
+    pin:
+      pca9554: pca9554_2
+      number: 2
+      inverted: true
+  - platform: gpio
+    name: "S2_R"
+    pin:
+      pca9554: pca9554_2
+      number: 3
+      inverted: true
+  - platform: gpio
+    name: "BTN_Y"
+    pin:
+      pca9554: pca9554_2
+      number: 4
+      inverted: true
+  - platform: gpio
+    name: "BTN_X"
+    pin:
+      pca9554: pca9554_2
+      number: 5
+      inverted: true
+  - platform: gpio
+    name: "BTN_B"
+    pin:
+      pca9554: pca9554_2
+      number: 6
+      inverted: true
+  - platform: gpio
+    name: "BTN_A"
+    pin:
+      pca9554: pca9554_2
+      number: 7
+      inverted: true
+
+  - platform: gpio
+    name: "S2_C"
+    pin:
+      pca9554: pca9554_3
+      number: 0
+      inverted: true
+  - platform: gpio
+    name: "BTN_START"
+    pin:
+      pca9554: pca9554_3
+      number: 1
+      inverted: true
+  - platform: gpio
+    name: "BTN_SR"
+    pin:
+      pca9554: pca9554_3
+      number: 2
+      inverted: true
+  - platform: gpio
+    name: "BTN_ZR"
+    pin:
+      pca9554: pca9554_3
+      number: 3
+      inverted: true
+  - platform: gpio
+    name: "BTN_ZL"
+    pin:
+      pca9554: pca9554_3
+      number: 4
+      inverted: true
+  - platform: gpio
+    name: "BTN_SL"
+    pin:
+      pca9554: pca9554_3
+      number: 5
+      inverted: true
+  - platform: gpio
+    name: "BTN_SELECT"
+    pin:
+      pca9554: pca9554_3
+      number: 6
+      inverted: true
+  - platform: gpio
+    name: "S1_C"
+    pin:
+      pca9554: pca9554_3
+      number: 7
+      inverted: true
+
+display:
+  - platform: mipi_spi
+    id: lcd
+    model: ILI9341
+    rotation: 270
+    data_rate: 10MHz
+    cs_pin: GPIO15
+    dc_pin: GPIO14
+    reset_pin: GPIO13
+    invert_colors: false
+#    show_test_card: true 
+    lambda: |-
+      it.fill(Color(0, 0, 0));
+    
+      it.print(
+        10, 10,
+        id(console_font),
+        Color(255, 255, 255),
+        id(console_message).state.c_str()
+      );
+
+sensor:
+  - platform: adc
+    name: Battery Voltage
+    id: sensor_adc_1
+    pin: GPIO28
+    filters:
+      - multiply: 2.0
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+
+  - platform: copy
+    source_id: sensor_adc_1
+    name: "Battery Level"
+    unit_of_measurement: "%"
+    device_class: battery
+    accuracy_decimals: 0
+    filters:
+      - calibrate_linear:
+          method: exact
+          datapoints:
+            - 3.00 -> 0
+            - 3.30 -> 5
+            - 3.50 -> 10
+            - 3.60 -> 20
+            - 3.70 -> 40
+            - 3.80 -> 60
+            - 3.90 -> 75
+            - 4.00 -> 85
+            - 4.10 -> 95
+            - 4.20 -> 100
+      - clamp:
+          min_value: 0
+          max_value: 100
